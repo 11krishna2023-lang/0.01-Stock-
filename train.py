@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 import yfinance as yf
 import numpy as np
 import pandas as pd
@@ -14,15 +17,24 @@ def make_features(df):
     df["MA10"] = df["Close"].rolling(10).mean()
     df["MA20"] = df["Close"].rolling(20).mean()
     df["Vol"] = df["Close"].rolling(20).std()
-    df = df.dropna()
+
+    # Label BEFORE dropping NaNs
+    df["Target"] = (df["Close"].shift(-1) > df["Close"]).astype(int)
+
+    # Drop NaNs from all indicator rows
+    df = df.dropna().copy()
+
     X = df[["Return","MA10","MA20","Vol"]].values
-    y = (df["Close"].shift(-1) > df["Close"]).astype(int).dropna().values
-    X = X[:-1]
-    return X, y
+    y = df["Target"].values
+
+    # Perfect alignment
+    min_len = min(len(X), len(y))
+    return X[:min_len], y[:min_len]
 
 print("Downloading data...")
-df = yf.download(TICKER, period="7y")
+df = yf.download(TICKER, period="7y", auto_adjust=True, progress=False)
 
+print("Building features...")
 X, y = make_features(df)
 
 print("Scaling...")
