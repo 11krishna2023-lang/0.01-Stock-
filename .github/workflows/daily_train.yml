@@ -1,0 +1,33 @@
+name: Auto Train Stock Model
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # runs every day at 6 AM UTC
+  workflow_dispatch:      # lets you run it manually
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        pip install yfinance numpy pandas scikit-learn joblib
+
+    - name: Run training
+      run: python train.py
+
+    - name: Commit trained model
+      run: |
+        git config user.email "robot@example.com"
+        git config user.name "Training Bot"
+        git add *.pkl
+        git commit -m "Updated model"
+        git push
