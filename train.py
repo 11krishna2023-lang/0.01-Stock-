@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
-# train.py
-# Advanced training job (GitHub Actions compatible)
-# - Downloads data with yfinance (auto_adjust=True)
-# - Computes indicators robustly
-# - Builds sliding-window features
-# - Trains SVM (classifier), SVR (regressor), and MLP classifier
-# - Saves models and scalers to models_output/
-# - Writes results.json with validation metrics
+# Multi-Ticker Training Pipeline
+# Trains SVM, SVR, MLP for each ticker and saves to models_output/
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -23,98 +17,103 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import accuracy_score, mean_squared_error
 import joblib
 
-# ---------- CONFIG ----------
-TICKER = os.getenv("TICKER", "AAPL")
+# ---------------- CONFIG ----------------
+TICKERS = os.getenv("TICKERS", "AAPL,SPY,TSLA,QQQ").split(",")
 YEARS = int(os.getenv("YEARS", "7"))
-WINDOW = int(os.getenv("WINDOW", "30"))   # sliding window (days)
-MODELS_DIR = os.getenv("MODELS_DIR", "models_output")
+WINDOW = int(os.getenv("WINDOW", "30"))
+MODELS_DIR = "models_output"
 os.makedirs(MODELS_DIR, exist_ok=True)
 
-# ---------- DATA + INDICATORS ----------
+
+# -------------- DATA FUNCTIONS --------------
 def download_data(ticker, years=7):
     end = datetime.now().date()
-    start = end - timedelta(days=365*years + 60)
-    df = yf.download(ticker, start=start.isoformat(), end=end.isoformat(),
-                     auto_adjust=True, progress=False)
+    start = end - timedelta(days=365 * years + 60)
+    df = yf.download(
+        ticker,
+        start=start.isoformat(),
+        end=end.isoformat(),
+        auto_adjust=True,
+        progress=False
+    )
     if df is None or df.empty:
-        raise RuntimeError(f"No data for {ticker}")
-    # ensure columns
+        raise RuntimeError(f"No data returned for {ticker}")
+
     if "Adj Close" not in df.columns:
         df["Adj Close"] = df["Close"]
-    return df[["Open","High","Low","Close","Adj Close","Volume"]].dropna()
 
-def add_indicators(df, window=30):
+    return df[["Open", "High", "Low", "Close", "Adj Close", "Volume"]].dropna()
+
+
+def add_indicators(df, window):
     df = df.copy()
-    # Moving averages (min_periods used so we keep more rows; we'll drop NaNs later)
     df["MA3"] = df["Adj Close"].rolling(3, min_periods=3).mean()
     df["MA5"] = df["Adj Close"].rolling(5, min_periods=5).mean()
-    df["Momentum"] = df["Adj Close"].diff(1)
-    df["Volatility"] = df["Adj Close"].rolling(window, min_periods=max(3,window//2)).std()
+    df["Momentum"] = df["Adj Close"].diff()
+    df["Volatility"] = df["Adj Close"].rolling(window, min_periods=10).std()
 
-    # MACD / Signal
-    try:
-        macd = pd.Series(df["Adj Close"]).ewm(span=12, adjust=False).mean() - pd.Series(df["Adj Close"]).ewm(span=26, adjust=False).mean()
-        macd_signal = macd.ewm(span=9, adjust=False).mean()
-        df["MACD"] = macd
-        df["MACD_signal"] = macd_signal
-    except Exception:
-        df["MACD"] = 0.0
-        df["MACD_signal"] = 0.0
+    # MACD
+    macd = df["Adj Close"].ewm(span=12, adjust=False).mean() - df[
+        "Adj Close"
+    ].ewm(span=26, adjust=False).mean()
+    df["MACD"] = macd
+    df["MACD_signal"] = macd.ewm(span=9, adjust=False).mean()
 
-    # Simple RSI (14)
+    # RSI
     delta = df["Adj Close"].diff()
     up = delta.clip(lower=0).rolling(14, min_periods=7).mean()
-    down = -delta.clip(upper=0).rolling(14, min_periods=7).mean()
+    down = (-delta.clip(upper=0)).rolling(14, min_periods=7).mean()
     rs = up / (down + 1e-9)
     df["RSI"] = 100 - (100 / (1 + rs))
 
-    # Bollinger
+    # Bollinger Bands
     ma20 = df["Adj Close"].rolling(20, min_periods=10).mean()
     std20 = df["Adj Close"].rolling(20, min_periods=10).std()
     df["BB_middle"] = ma20
-    df["BB_high"] = ma20 + 2*std20
-    df["BB_low"] = ma20 - 2*std20
+    df["BB_high"] = ma20 + 2 * std20
+    df["BB_low"] = ma20 - 2 * std20
 
-    # final dropna
-    df = df.dropna().copy()
-    return df
+    return df.dropna().copy()
 
-# ---------- FEATURE MATRIX ----------
-def build_features_matrix(df, window=30):
+
+def build_features_matrix(df, window):
     df = add_indicators(df, window)
-    cols = ['Open','High','Low','Close','Adj Close','Volume',
-            'MA3','MA5','Momentum','Volatility',
-            'MACD','MACD_signal','RSI','BB_middle','BB_high','BB_low']
+    cols = [
+        "Open", "High", "Low", "Close", "Adj Close", "Volume",
+        "MA3", "MA5", "Momentum", "Volatility",
+        "MACD", "MACD_signal", "RSI",
+        "BB_middle", "BB_high", "BB_low"
+    ]
+
     if len(df) < window + 5:
-        raise RuntimeError(f"Not enough data after indicators: have {len(df)}, need at least {window+5}")
+        raise RuntimeError(f"Not enough rows after indicators: {len(df)}")
 
-    X_rows, y_class, y_reg, dates = [], [], [], []
-    close = df['Adj Close'].values
-    for i in range(window, len(df)-1):
-        slice_ = df.iloc[i-window:i]
-        flat = slice_[cols].values.flatten()
+    X_rows, y_cl, y_reg = [], [], []
+    close = df["Adj Close"].values
+
+    for i in range(window, len(df) - 1):
+        window_slice = df.iloc[i - window:i]
+        flat = window_slice[cols].values.flatten()
         X_rows.append(flat)
-        y_class.append(1 if close[i+1] > close[i] else 0)
-        y_reg.append(float(close[i+1]))
-        dates.append(df.index[i])
+        y_cl.append(1 if close[i + 1] > close[i] else 0)
+        y_reg.append(close[i + 1])
+
     X = np.vstack(X_rows)
-    return X, np.array(y_class), np.array(y_reg), dates
+    return X, np.array(y_cl), np.array(y_reg)
 
-# ---------- MODEL TRAINING ----------
-def train_and_save(ticker=TICKER, years=YEARS, window=WINDOW):
-    print("Downloading data...")
-    df = download_data(ticker, years)
 
-    print("Building features...")
-    X, y_cl, y_reg, dates = build_features_matrix(df, window)
+# ------------ TRAINING ------------
+def train_for_ticker(ticker):
+    print(f"\n=== TRAINING {ticker} ===")
 
-    # time-series split (no shuffle)
+    df = download_data(ticker, YEARS)
+    X, y_cl, y_reg = build_features_matrix(df, WINDOW)
+
     split = int(len(X) * 0.7)
     X_train, X_val = X[:split], X[split:]
     y_train_cl, y_val_cl = y_cl[:split], y_cl[split:]
     y_train_reg, y_val_reg = y_reg[:split], y_reg[split:]
 
-    # scale
     scaler = StandardScaler().fit(X_train)
     Xtr = scaler.transform(X_train)
     Xv = scaler.transform(X_val)
@@ -122,49 +121,48 @@ def train_and_save(ticker=TICKER, years=YEARS, window=WINDOW):
     results = {}
 
     # SVM classifier
-    print("Training SVM classifier...")
-    svm = SVC(kernel='rbf', probability=True)
+    svm = SVC(kernel="rbf", probability=True)
     svm.fit(Xtr, y_train_cl)
-    svm_acc = float(accuracy_score(y_val_cl, svm.predict(Xv)))
-    joblib.dump({'model': svm, 'scaler': scaler}, os.path.join(MODELS_DIR, f"{ticker}_svm.joblib"))
-    results['svm_val_acc'] = svm_acc
-    print("SVM val acc:", svm_acc)
+    results["svm_acc"] = float(accuracy_score(y_val_cl, svm.predict(Xv)))
+    joblib.dump({"model": svm, "scaler": scaler},
+                f"{MODELS_DIR}/{ticker}_svm.joblib")
 
-    # SVR (regression)
-    print("Training SVR...")
-    svr = SVR(kernel='rbf')
+    # SVR regression
+    svr = SVR(kernel="rbf")
     svr.fit(Xtr, y_train_reg)
-    svr_mse = float(mean_squared_error(y_val_reg, svr.predict(Xv)))
-    joblib.dump({'model': svr, 'scaler': scaler}, os.path.join(MODELS_DIR, f"{ticker}_svr.joblib"))
-    results['svr_val_mse'] = svr_mse
-    print("SVR val mse:", svr_mse)
+    results["svr_mse"] = float(mean_squared_error(y_val_reg, svr.predict(Xv)))
+    joblib.dump({"model": svr, "scaler": scaler},
+                f"{MODELS_DIR}/{ticker}_svr.joblib")
 
     # MLP classifier
-    print("Training MLP classifier...")
-    mlp = MLPClassifier(hidden_layer_sizes=(128,64), max_iter=500)
+    mlp = MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=500)
     mlp.fit(Xtr, y_train_cl)
-    mlp_acc = float(accuracy_score(y_val_cl, mlp.predict(Xv)))
-    joblib.dump({'model': mlp, 'scaler': scaler}, os.path.join(MODELS_DIR, f"{ticker}_mlp.joblib"))
-    results['mlp_val_acc'] = mlp_acc
-    print("MLP val acc:", mlp_acc)
+    results["mlp_acc"] = float(accuracy_score(y_val_cl, mlp.predict(Xv)))
+    joblib.dump({"model": mlp, "scaler": scaler},
+                f"{MODELS_DIR}/{ticker}_mlp.joblib")
 
-    # save scaler independently too
-    joblib.dump(scaler, os.path.join(MODELS_DIR, f"{ticker}_scaler.joblib"))
-
-    # summary
-    results['ticker'] = ticker
-    results['trained_at'] = datetime.utcnow().isoformat() + "Z"
-    results['n_samples'] = int(len(X))
-    results['window'] = int(window)
-
-    # save results
-    with open(os.path.join(MODELS_DIR, f"{ticker}_results.json"), "w") as f:
+    # Save summary
+    results["ticker"] = ticker
+    results["trained_at"] = datetime.utcnow().isoformat() + "Z"
+    with open(f"{MODELS_DIR}/{ticker}_results.json", "w") as f:
         json.dump(results, f, indent=2)
 
-    print("Training finished. Results:", results)
+    print(f"✓ {ticker} training complete:", results)
     return results
 
-# ---------- MAIN ----------
+
+# ---------------- MAIN ----------------
 if __name__ == "__main__":
-    res = train_and_save()
-    # exit code 0 on success
+    all_results = {}
+
+    for t in TICKERS:
+        try:
+            all_results[t] = train_for_ticker(t)
+        except Exception as e:
+            all_results[t] = {"error": str(e)}
+            print(f"ERROR training {t}: {e}")
+
+    with open(f"{MODELS_DIR}/all_results.json", "w") as f:
+        json.dump(all_results, f, indent=2)
+
+    print("\nAll training complete.")
