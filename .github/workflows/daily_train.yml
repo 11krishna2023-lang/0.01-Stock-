@@ -1,22 +1,20 @@
-name: Daily Training
+name: Daily Multi-Ticker Training
 
 on:
   schedule:
-    - cron: "0 9 * * *"          # Runs every day at 9:00 UTC
-  workflow_dispatch:             # Manual trigger support
+    - cron: "0 9 * * *"
+  workflow_dispatch:
 
 permissions:
-  contents: write                # Needed for pushing changes
+  contents: write
 
 jobs:
   train:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout repo
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -28,24 +26,27 @@ jobs:
         pip install --upgrade pip
         pip install yfinance pandas numpy scikit-learn joblib
 
-    - name: Run training script
+    - name: Run multi-ticker train.py
+      env:
+        TICKERS: "AAPL,SPY,TSLA,QQQ"   # EDIT HERE
+        YEARS: "7"
+        WINDOW: "30"
       run: |
-        echo "Running advanced train.py..."
         python train.py
 
-    - name: Upload trained models (Artifacts)
+    - name: Upload models
       uses: actions/upload-artifact@v4
       with:
         name: trained-models
         path: models_output/
 
-    - name: Commit and push updated models
+    - name: Commit trained models
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add models_output/* || true
         git add *.json || true
-        git commit -m "Daily auto-training update $(date -u)" || echo "No changes to commit"
+        git commit -m "Auto-training update $(date -u)" || echo "No changes"
         git push
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
