@@ -1,16 +1,22 @@
-name: Auto Train Stock Model
+name: Daily Training
 
 on:
   schedule:
-    - cron: "0 6 * * *"   # runs every day at 6 AM UTC
-  workflow_dispatch:      # lets you run it manually
+    - cron: "0 9 * * *"          # Runs every day at 9:00 UTC
+  workflow_dispatch:             # Manual trigger support
+
+permissions:
+  contents: write                # Needed for pushing changes
 
 jobs:
   train:
     runs-on: ubuntu-latest
+
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -19,15 +25,27 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install yfinance numpy pandas scikit-learn joblib
+        pip install --upgrade pip
+        pip install yfinance pandas numpy scikit-learn joblib
 
-    - name: Run training
-      run: python train.py
-
-    - name: Commit trained model
+    - name: Run training script
       run: |
-        git config user.email "robot@example.com"
-        git config user.name "Training Bot"
-        git add *.pkl
-        git commit -m "Updated model"
+        echo "Running advanced train.py..."
+        python train.py
+
+    - name: Upload trained models (Artifacts)
+      uses: actions/upload-artifact@v4
+      with:
+        name: trained-models
+        path: models_output/
+
+    - name: Commit and push updated models
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add models_output/* || true
+        git add *.json || true
+        git commit -m "Daily auto-training update $(date -u)" || echo "No changes to commit"
         git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
