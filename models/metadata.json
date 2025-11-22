@@ -1,65 +1,65 @@
 {
-    "generated": "2025-11-21",
+    "generated": "2025-11-22",
     "models": {
         "AAPL": {
-            "model_file": "models/model_AAPL_v1763696192.pkl",
-            "scaler_file": "models/scaler_AAPL_v1763696192.pkl",
+            "model_file": "models/model_AAPL_v1763781550.pkl",
+            "scaler_file": "models/scaler_AAPL_v1763781550.pkl",
             "samples": 1740,
-            "date": "2025-11-21"
+            "date": "2025-11-22"
         },
         "MSFT": {
-            "model_file": "models/model_MSFT_v1763696194.pkl",
-            "scaler_file": "models/scaler_MSFT_v1763696194.pkl",
+            "model_file": "models/model_MSFT_v1763781553.pkl",
+            "scaler_file": "models/scaler_MSFT_v1763781553.pkl",
             "samples": 1740,
-            "date": "2025-11-21"
+            "date": "2025-11-22"
         },
         "SPY": {
-            "model_file": "models/model_SPY_v1763696198.pkl",
-            "scaler_file": "models/scaler_SPY_v1763696198.pkl",
+            "model_file": "models/model_SPY_v1763781557.pkl",
+            "scaler_file": "models/scaler_SPY_v1763781557.pkl",
             "samples": 1740,
-            "date": "2025-11-21"
+            "date": "2025-11-22"
         },
         "QQQ": {
-            "model_file": "models/model_QQQ_v1763696202.pkl",
-            "scaler_file": "models/scaler_QQQ_v1763696202.pkl",
+            "model_file": "models/model_QQQ_v1763781560.pkl",
+            "scaler_file": "models/scaler_QQQ_v1763781560.pkl",
             "samples": 1740,
-            "date": "2025-11-21"
+            "date": "2025-11-22"
         },
         "GOOG": {
-            "model_file": "models/model_GOOG_v1763696204.pkl",
-            "scaler_file": "models/scaler_GOOG_v1763696204.pkl",
+            "model_file": "models/model_GOOG_v1763781564.pkl",
+            "scaler_file": "models/scaler_GOOG_v1763781564.pkl",
             "samples": 1740,
-            "date": "2025-11-21"
+            "date": "2025-11-22"
         },
         "GOOGL": {
-            "model_file": "models/model_GOOGL_v1763696206.pkl",
-            "scaler_file": "models/scaler_GOOGL_v1763696206.pkl",
+            "model_file": "models/model_GOOGL_v1763781566.pkl",
+            "scaler_file": "models/scaler_GOOGL_v1763781566.pkl",
             "samples": 1740,
-            "date": "2025-11-21"
+            "date": "2025-11-22"
         },
         "NVDA": {
-            "model_file": "models/model_NVDA_v1763696208.pkl",
-            "scaler_file": "models/scaler_NVDA_v1763696208.pkl",
+            "model_file": "models/model_NVDA_v1763781567.pkl",
+            "scaler_file": "models/scaler_NVDA_v1763781567.pkl",
             "samples": 1740,
-            "date": "2025-11-21"
+            "date": "2025-11-22"
         },
         "AVGO": {
-            "model_file": "models/model_AVGO_v1763696213.pkl",
-            "scaler_file": "models/scaler_AVGO_v1763696213.pkl",
+            "model_file": "models/model_AVGO_v1763781570.pkl",
+            "scaler_file": "models/scaler_AVGO_v1763781570.pkl",
             "samples": 1740,
-            "date": "2025-11-21"
+            "date": "2025-11-22"
         },
         "005930.KS": {
-            "model_file": "models/model_005930.KS_v1763696215.pkl",
-            "scaler_file": "models/scaler_005930.KS_v1763696215.pkl",
+            "model_file": "models/model_005930.KS_v1763781572.pkl",
+            "scaler_file": "models/scaler_005930.KS_v1763781572.pkl",
             "samples": 1698,
-            "date": "2025-11-21"
+            "date": "2025-11-22"
         },
         "EXAS": {
-            "model_file": "models/model_EXAS_v1763696219.pkl",
-            "scaler_file": "models/scaler_EXAS_v1763696219.pkl",
+            "model_file": "models/model_EXAS_v1763781575.pkl",
+            "scaler_file": "models/scaler_EXAS_v1763781575.pkl",
             "samples": 1740,
-            "date": "2025-11-21"
+            "date": "2025-11-22"
         }
     }
 }
