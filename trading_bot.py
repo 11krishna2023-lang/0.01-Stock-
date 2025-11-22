@@ -6,8 +6,8 @@ from notify import telegram_send
 from your_predict_module import live_predict  # import from your V1/Colab code or copy function here
 # or load models directly: joblib.load('models_output/AAPL_mlp.joblib')
 
-ALPACA_KEY = os.getenv('ALPACA_API_KEY')
-ALPACA_SECRET = os.getenv('ALPACA_SECRET_KEY')
+ALPACA_KEY = os.getenv('PKLDMLK2CBKY24MP7SYBEUIDYM')
+ALPACA_SECRET = os.getenv('DctPi76HXGraXYdxkA71XzugvXUsiJVo3ufMcL6jiPmp')
 ALPACA_BASE = os.getenv('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets')
 USE_PAPER = os.getenv('USE_PAPER','true').lower() in ('1','true','yes')
 
