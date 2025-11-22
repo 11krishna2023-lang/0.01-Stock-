@@ -1,20 +1,15 @@
-name: Train Multi-Ticker Models
+name: Train Models Daily
 
 on:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 9 * * *"   # Runs every day ~2:30 PM IST
   workflow_dispatch:
 
 jobs:
   train:
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -23,15 +18,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install yfinance pandas numpy scikit-learn joblib
+          pip install yfinance numpy pandas scikit-learn joblib
 
-      - name: Run training
+      - name: Run Training
         run: python train.py
 
-      - name: Commit updated models
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add models/
-          git commit -m "Auto-trained models $(date)" || echo "No changes"
-          git push
+      - name: Upload new models to repo
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Daily model upgrade"
+          file_pattern: "models/*"
